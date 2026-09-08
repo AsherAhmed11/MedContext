@@ -1,0 +1,14 @@
+{
+  "name": "medcontext",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MedContext MERN prototype",
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

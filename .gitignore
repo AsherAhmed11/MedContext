@@ -3,3 +3,6 @@ dist
 .env
 *.log
 .DS_Store
+"DELEGATION_PLAN.md" 
+"SESSION_CONTEXT.md" 
+"WORKFLOW.md" 

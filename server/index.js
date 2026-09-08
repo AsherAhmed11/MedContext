@@ -45,7 +45,9 @@ app.use((_req, res) => {
 
 async function start() {
   try {
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 3000,
+    });
     console.log("MongoDB connected");
   } catch (error) {
     console.warn("MongoDB not connected:", error.message);

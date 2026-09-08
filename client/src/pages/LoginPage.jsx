@@ -64,9 +64,9 @@ export default function LoginPage() {
         Skip to sign in
       </a>
 
-      <div className="tablet" aria-label="MedContext tablet portal">
-        <span className="tablet__camera" aria-hidden="true" />
-        <div className="tablet__screen">
+      <div className="device-shell" aria-label="MedContext healthcare portal">
+        <span className="device-shell__camera" aria-hidden="true" />
+        <div className="device-screen">
           <img
             className="clinic-photo"
             src="/clinic-lobby.png"

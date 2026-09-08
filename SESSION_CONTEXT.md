@@ -61,3 +61,57 @@ Open `WORKFLOW.md` and begin **Session 1 of the suggested session order**: write
 Phase 0 / workflow Session 1: you define requirements and non-goals; then architecture review (no code) as ADR-001.
 
 ---
+
+## Session 2 — 2026-09-08
+
+### Prompt
+
+Create a login interface. This is a MERN project, so use only MongoDB, Express, React, and Node (not Next.js). The screen must match a detailed tablet mockup: landscape iPad frame, clinic lobby background, MedContext branding, white login card, email/password with icons and show/hide, Log In + Forgot Password, trust copy bottom-left, accessibility and language widgets bottom-right.
+
+### Answer
+
+Scaffolded a MERN app (`client` Vite + React, `server` Express + Mongoose) and implemented the specified login UI inside a landscape tablet bezel. The form posts to `POST /api/auth/login`. Accounts are not provisioned yet, so a valid-looking submit returns 401 by design. Password visibility, large text, screen-reader emphasis, and English / Español / Français copy all work in the UI. Stack in `WORKFLOW.md` was corrected from Next.js to React + Vite.
+
+### Files changed
+
+- `package.json`, `.gitignore`
+- `client/` React login page, CSS, logo, i18n, clinic background
+- `server/` Express API (`/api/health`, `/api/auth/login`)
+- `WORKFLOW.md` (MERN layout)
+- `SESSION_CONTEXT.md` (this session)
+
+### Next action
+
+Open `http://localhost:5173` while `npm run dev` is running. Next engineering step remains real authentication (JWT, users, roles) after you confirm the login look.
+
+---
+
+## Session 3 — 2026-09-08
+
+### Prompt
+
+Make the interface work for all devices: mobile, PC, tablet, and similar.
+
+### Answer
+
+The login page is now responsive instead of always sitting inside a fake iPad.
+
+- **Phone:** full-screen portal, stacked form, full-width Log In, language as chips, safe-area padding, 48px touch targets. Landscape phones compact the header and put trust + widgets in a row.
+- **Tablet:** fills the real device; no nested tablet chrome.
+- **PC (wide and tall):** keeps the original landscape iPad mockup, scaled up on very large screens.
+
+Viewport uses `viewport-fit=cover`. Input font size is 16px so iOS does not zoom on focus.
+
+### Files changed
+
+- `client/index.html`
+- `client/src/index.css`
+- `client/src/pages/LoginPage.jsx`
+- `client/src/pages/LoginPage.css`
+- `SESSION_CONTEXT.md`
+
+### Next action
+
+Refresh `http://localhost:5173` and resize the window (or use browser device mode) for phone, tablet, and desktop. Then confirm look before JWT auth.
+
+---

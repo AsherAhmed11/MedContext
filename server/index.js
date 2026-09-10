@@ -9,6 +9,8 @@ import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 
+import authRoutes from "./routes/auth.js";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
 
@@ -26,26 +28,7 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.post("/api/auth/login", (req, res) => {
-  const email = String(req.body?.email || "").trim();
-  const password = String(req.body?.password || "");
-
-  if (!email || !password) {
-    return res.status(400).json({
-      message: "Email and password are required.",
-    });
-  }
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return res.status(400).json({
-      message: "Enter a valid email address.",
-    });
-  }
-
-  return res.status(401).json({
-    message: "Invalid email or password. User accounts are not provisioned yet.",
-  });
-});
+app.use("/api/auth", authRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Not found" });
@@ -161,4 +144,9 @@ async function start() {
   });
 }
 
-start();
+// Only start the server if this file is run directly (not imported by tests)
+if (process.env.NODE_ENV !== "test") {
+  start();
+}
+
+export { app, start };

@@ -9,6 +9,10 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       maxlength: 320,
     },
+    passwordHash: {
+      type: String,
+      required: true,
+    },
     role: {
       type: String,
       enum: ["doctor", "patient", "admin"],
@@ -50,6 +54,7 @@ userSchema.set("toJSON", {
   transform(_doc, ret) {
     ret.id = ret._id;
     delete ret._id;
+    delete ret.passwordHash;
     return ret;
   },
 });

@@ -13,7 +13,11 @@ import authRoutes from "./routes/auth.js";
 import patientRoutes from "./routes/patients.js";
 import doctorRoutes from "./routes/doctors.js";
 import adminRoutes from "./routes/admin.js";
+import consentRoutes from "./routes/consents.js";
+import emergencyAccessRoutes from "./routes/emergencyAccess.js";
+import auditLogRoutes from "./routes/auditLogs.js";
 import { requireAuth } from "./middleware/auth.js";
+import { auditMiddleware } from "./middleware/audit.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env") });
@@ -33,9 +37,12 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
-app.use("/api/patients", requireAuth, patientRoutes);
+app.use("/api/patients", requireAuth, auditMiddleware, patientRoutes);
 app.use("/api/doctors", requireAuth, doctorRoutes);
 app.use("/api/admin", requireAuth, adminRoutes);
+app.use("/api/consents", requireAuth, consentRoutes);
+app.use("/api/emergency-access", requireAuth, emergencyAccessRoutes);
+app.use("/api/audit-logs", requireAuth, auditLogRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Not found" });

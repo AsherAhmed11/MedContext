@@ -1,0 +1,60 @@
+.audit-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e8eef2;
+}
+
+.audit-filters .form-group {
+  margin-bottom: 0;
+}
+
+.timestamp-cell {
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.id-cell {
+  font-family: monospace;
+  font-size: 12px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.action-tag {
+  display: inline-block;
+  background: #e8f4f8;
+  color: var(--teal-deep);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8eef2;
+  margin-top: 12px;
+}
+
+.pagination__info {
+  font-size: 13px;
+  color: var(--muted);
+}

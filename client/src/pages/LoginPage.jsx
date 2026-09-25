@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import { MedContextLogo } from "../components/MedContextLogo.jsx";
 import { copy } from "../i18n/loginCopy.js";
 import "./LoginPage.css";
@@ -10,6 +12,8 @@ const LANGUAGES = [
 ];
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [language, setLanguage] = useState("en");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,19 +38,10 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.message || "Unable to sign in.");
-        return;
-      }
-      setStatus("Signed in.");
-    } catch {
-      setError("The portal could not reach the server. Try again.");
+      await login(email.trim(), password);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.message || "Unable to sign in.");
     } finally {
       setBusy(false);
     }

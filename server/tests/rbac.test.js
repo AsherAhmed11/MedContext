@@ -14,6 +14,7 @@ import Appointment from "../models/Appointment.js";
 import Medication from "../models/Medication.js";
 import MedicalHistory from "../models/MedicalHistory.js";
 import MedicalReport from "../models/MedicalReport.js";
+import Consent from "../models/Consent.js";
 
 dotenv.config({ path: ".env" });
 
@@ -218,6 +219,7 @@ describe("RBAC and Multi-Tenant Security Suite", () => {
       Medication.deleteMany({ organizationId: { $in: orgIds } }),
       MedicalHistory.deleteMany({ organizationId: { $in: orgIds } }),
       MedicalReport.deleteMany({ organizationId: { $in: orgIds } }),
+      Consent.deleteMany({ organizationId: { $in: orgIds } }),
       Organization.deleteMany({ _id: { $in: orgIds } }),
     ]);
     await mongoose.disconnect();
@@ -321,7 +323,27 @@ describe("RBAC and Multi-Tenant Security Suite", () => {
       );
     });
 
-    it("doctor now has clinical relationship with patientA1 and can view profile", async () => {
+    it("doctor with clinical relationship but NO consent gets 403", async () => {
+      const res = await request(app)
+        .get(`/api/patients/${patientA1Doc._id}`)
+        .set("Authorization", `Bearer ${doctorA1Token}`);
+      expect(res.status).toBe(403);
+      expect(res.body.message).toContain("consent");
+    });
+
+    it("patient grants consent to doctorA1", async () => {
+      const res = await request(app)
+        .post("/api/consents")
+        .set("Authorization", `Bearer ${patientA1Token}`)
+        .send({
+          doctorUserId: doctorA1._id.toString(),
+          purpose: "Cardiology consultation",
+        });
+      expect(res.status).toBe(201);
+      expect(res.body.consent.status).toBe("active");
+    });
+
+    it("doctor with clinical relationship AND consent can view profile", async () => {
       const res = await request(app)
         .get(`/api/patients/${patientA1Doc._id}`)
         .set("Authorization", `Bearer ${doctorA1Token}`);
@@ -336,7 +358,7 @@ describe("RBAC and Multi-Tenant Security Suite", () => {
       expect(res.status).toBe(404);
     });
 
-    it("doctorA1 now sees patientA1 in GET /api/patients list", async () => {
+    it("doctorA1 now sees patientA1 in GET /api/patients list (has relationship + consent)", async () => {
       const res = await request(app)
         .get("/api/patients")
         .set("Authorization", `Bearer ${doctorA1Token}`);

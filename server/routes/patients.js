@@ -7,6 +7,7 @@ import Medication from "../models/Medication.js";
 import MedicalHistory from "../models/MedicalHistory.js";
 import MedicalReport from "../models/MedicalReport.js";
 import { requireRole } from "../middleware/authorize.js";
+import { requireConsent } from "../middleware/consent.js";
 
 const router = express.Router();
 
@@ -116,7 +117,49 @@ router.get("/", requireRole("doctor", "admin"), async (req, res) => {
         return res.json({ patients: [] });
       }
 
-      filter._id = { $in: [...patientIds] };
+      // Filter by active consent OR active emergency access
+      const { default: Consent } = await import("../models/Consent.js");
+      const { default: EmergencyAccess } = await import("../models/EmergencyAccess.js");
+      const now = new Date();
+
+      const [consents, emergencyAccesses] = await Promise.all([
+        Consent.find({
+          grantedToUserId: req.user._id,
+          organizationId: req.user.organizationId,
+          status: "active",
+          $or: [
+            { expiresAt: { $exists: false } },
+            { expiresAt: null },
+            { expiresAt: { $gt: now } },
+          ],
+        })
+          .select("patientId")
+          .lean(),
+        EmergencyAccess.find({
+          accessedByUserId: req.user._id,
+          organizationId: req.user.organizationId,
+          status: "active",
+          expiresAt: { $gt: now },
+        })
+          .select("patientId")
+          .lean(),
+      ]);
+
+      const authorizedPatientIds = new Set([
+        ...consents.map((c) => c.patientId.toString()),
+        ...emergencyAccesses.map((e) => e.patientId.toString()),
+      ]);
+
+      // Intersection: only patients with both relationship AND (consent OR emergency access)
+      const allowedPatientIds = [...patientIds].filter((id) =>
+        authorizedPatientIds.has(id)
+      );
+
+      if (allowedPatientIds.length === 0) {
+        return res.json({ patients: [] });
+      }
+
+      filter._id = { $in: allowedPatientIds };
     }
 
     const patients = await Patient.find(filter)
@@ -166,6 +209,19 @@ router.get("/:patientId", async (req, res) => {
       );
       if (!related) {
         return res.status(404).json({ message: "Patient not found." });
+      }
+
+      // Consent check for doctors
+      const { hasActiveConsent } = await import("../middleware/consent.js");
+      const consent = await hasActiveConsent(
+        req.user._id,
+        patient._id,
+        req.user.organizationId
+      );
+      if (!consent) {
+        return res.status(403).json({
+          message: "Access denied. Patient consent is required to view this chart.",
+        });
       }
     }
     // admin: allowed for any patient in org
@@ -256,6 +312,19 @@ async function resolvePatientForClinicalResource(req, res, next) {
     );
     if (!related) {
       return res.status(404).json({ message: "Patient not found." });
+    }
+
+    // Consent check for doctors accessing clinical resources
+    const { hasActiveConsent } = await import("../middleware/consent.js");
+    const consent = await hasActiveConsent(
+      req.user._id,
+      patient._id,
+      req.user.organizationId
+    );
+    if (!consent) {
+      return res.status(403).json({
+        message: "Access denied. Patient consent is required to view this chart.",
+      });
     }
   }
 

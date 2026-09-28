@@ -115,3 +115,77 @@ Viewport uses `viewport-fit=cover`. Input font size is 16px so iOS does not zoom
 Refresh `http://localhost:5173` and resize the window (or use browser device mode) for phone, tablet, and desktop. Then confirm look before JWT auth.
 
 ---
+
+## Session 4 — 2026-09-25
+
+### Prompt
+
+Build Phase 3 (Consent) and Phase 4 (Emergency Access + Audit) backend, phase by phase.
+
+### Answer
+
+**Phase 3 — Consent (Authorization Layer):**
+- Created `server/routes/consents.js` with full CRUD:
+  - `POST /api/consents` — patient grants consent to a doctor
+  - `GET /api/consents` — patient sees own, doctor sees granted-to-me, admin sees all in org
+  - `GET /api/consents/:id` — get specific consent with role-based access
+  - `PUT /api/consents/:id/revoke` — patient revokes own consent
+- Created `server/middleware/consent.js`:
+  - `requireConsent` middleware — gates chart access for doctors
+  - `hasActiveConsent` utility — checks consent OR emergency access
+  - Patients and admins are exempt from consent checks
+  - Handles expired consent (checks `expiresAt` field)
+- Updated `server/routes/patients.js`:
+  - GET patient profile now requires consent for doctors
+  - GET clinical resources (appointments, medications, etc.) now requires consent for doctors
+  - Patient list filtered by consent + emergency access for doctors
+
+**Phase 4 — Emergency Access + Audit:**
+- Created `server/routes/emergencyAccess.js`:
+  - `POST /api/emergency-access` — doctor initiates break-glass (requires reason)
+  - `GET /api/emergency-access` — doctor sees own, admin sees all, filterable
+  - `GET /api/emergency-access/:id` — get specific access
+  - `PUT /api/emergency-access/:id/end` — doctor ends access early
+  - `GET /api/emergency-access/check/:patientId` — check active access
+  - Duration: 5 min min, 8 hours max, default 60 min
+- Created `server/routes/auditLogs.js`:
+  - `GET /api/audit-logs` — admin only, filterable by action/resourceType/actor/patient/outcome/date range
+  - `GET /api/audit-logs/:id` — get specific log
+  - `GET /api/audit-logs/stats/summary` — counts by action and outcome
+- Created `server/middleware/audit.js`:
+  - `logAudit` utility — writes audit entries without blocking requests
+  - `auditMiddleware` — attaches `req.audit()` helper to routes
+  - Action and resource type constants for consistency
+- Updated consent middleware to check emergency access as fallback
+
+**Tests:**
+- Created `server/tests/consent-emergency.test.js` with 40+ test cases covering:
+  - Consent grant, list, revoke, duplicate prevention
+  - Role restrictions (patient-only grant/revoke, admin-only audit)
+  - Consent gate (access denied without consent, allowed with consent)
+  - Expired consent handling
+  - Emergency access initiation, duplicate prevention, duration limits
+  - Emergency access bypasses consent
+  - Emergency access end and access revocation
+  - Audit log listing, filtering, stats
+  - Multi-tenant isolation
+- Updated `server/tests/rbac.test.js` to account for consent requirement
+
+### Files changed
+
+- `server/routes/consents.js` (created)
+- `server/routes/emergencyAccess.js` (created)
+- `server/routes/auditLogs.js` (created)
+- `server/middleware/consent.js` (created)
+- `server/middleware/audit.js` (created)
+- `server/routes/patients.js` (updated — consent checks)
+- `server/index.js` (updated — new routes + audit middleware)
+- `server/tests/consent-emergency.test.js` (created)
+- `server/tests/rbac.test.js` (updated — consent + cleanup)
+- `SESSION_CONTEXT.md` (this update)
+
+### Next action
+
+Frontend pages for consent management, emergency access, and audit log viewing. Then Phase 5 (Context Engine).
+
+---

@@ -38,10 +38,10 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/patients", requireAuth, auditMiddleware, patientRoutes);
-app.use("/api/doctors", requireAuth, doctorRoutes);
-app.use("/api/admin", requireAuth, adminRoutes);
-app.use("/api/consents", requireAuth, consentRoutes);
-app.use("/api/emergency-access", requireAuth, emergencyAccessRoutes);
+app.use("/api/doctors", requireAuth, auditMiddleware, doctorRoutes);
+app.use("/api/admin", requireAuth, auditMiddleware, adminRoutes);
+app.use("/api/consents", requireAuth, auditMiddleware, consentRoutes);
+app.use("/api/emergency-access", requireAuth, auditMiddleware, emergencyAccessRoutes);
 app.use("/api/audit-logs", requireAuth, auditLogRoutes);
 
 app.use((_req, res) => {

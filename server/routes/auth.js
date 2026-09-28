@@ -8,6 +8,7 @@ import Doctor from "../models/Doctor.js";
 import Organization from "../models/Organization.js";
 import { authLimiter } from "../middleware/rateLimiter.js";
 import { requireAuth } from "../middleware/auth.js";
+import { logAudit, AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "../middleware/audit.js";
 
 const router = express.Router();
 
@@ -107,6 +108,17 @@ router.post("/register", authLimiter, async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // Audit: user registered
+    await logAudit({
+      organizationId: newUser.organizationId,
+      actorUserId: newUser._id,
+      action: AUDIT_ACTIONS.USER_REGISTERED,
+      resourceType: AUDIT_RESOURCE_TYPES.USER,
+      resourceId: newUser._id,
+      outcome: "success",
+      metadata: { role, email: cleanEmail },
+    });
+
     // Safety check - never return password hash
     const userResponse = newUser.toJSON();
 
@@ -173,6 +185,18 @@ router.post("/login", authLimiter, async (req, res) => {
 
     user.lastLoginAt = new Date();
     await user.save();
+
+    // Audit: user logged in
+    await logAudit({
+      organizationId: user.organizationId,
+      actorUserId: user._id,
+      action: AUDIT_ACTIONS.USER_LOGIN,
+      resourceType: AUDIT_RESOURCE_TYPES.USER,
+      resourceId: user._id,
+      outcome: "success",
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    });
 
     return res.json({
       message: "Login successful.",

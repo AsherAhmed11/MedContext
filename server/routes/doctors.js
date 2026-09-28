@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import Doctor from "../models/Doctor.js";
 import { requireRole } from "../middleware/authorize.js";
+import { AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "../middleware/audit.js";
 
 const router = express.Router();
 
@@ -81,13 +82,26 @@ router.put("/:doctorId", requireRole("admin"), async (req, res) => {
 
     const allowedFields = ["displayName", "licenseNumber", "specialties", "status"];
 
+    const changedFields = {};
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
+        changedFields[field] = { old: doctor[field], new: req.body[field] };
         doctor[field] = req.body[field];
       }
     }
 
     await doctor.save();
+
+    // Audit: doctor profile updated
+    if (Object.keys(changedFields).length > 0) {
+      await req.audit({
+        action: AUDIT_ACTIONS.DOCTOR_PROFILE_UPDATED,
+        resourceType: AUDIT_RESOURCE_TYPES.DOCTOR,
+        resourceId: doctor._id,
+        outcome: "success",
+        metadata: { changedFields },
+      });
+    }
 
     res.json({ doctor: doctor.toJSON() });
   } catch (error) {

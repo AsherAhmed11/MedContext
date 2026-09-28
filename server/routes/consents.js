@@ -5,6 +5,7 @@ import Patient from "../models/Patient.js";
 import Doctor from "../models/Doctor.js";
 import User from "../models/User.js";
 import { requireRole } from "../middleware/authorize.js";
+import { AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "../middleware/audit.js";
 
 const router = express.Router();
 
@@ -79,6 +80,16 @@ router.post("/", requireRole("patient"), async (req, res) => {
       grantedAt: new Date(),
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
       notes: notes ? String(notes).trim() : undefined,
+    });
+
+    // Audit: consent granted
+    await req.audit({
+      action: AUDIT_ACTIONS.CONSENT_GRANTED,
+      resourceType: AUDIT_RESOURCE_TYPES.CONSENT,
+      resourceId: consent._id,
+      patientId: patient._id,
+      outcome: "success",
+      metadata: { grantedToUserId: doctorUserId, purpose },
     });
 
     res.status(201).json({ consent });
@@ -179,6 +190,16 @@ router.put(
       consent.status = "revoked";
       consent.revokedAt = new Date();
       await consent.save();
+
+      // Audit: consent revoked
+      await req.audit({
+        action: AUDIT_ACTIONS.CONSENT_REVOKED,
+        resourceType: AUDIT_RESOURCE_TYPES.CONSENT,
+        resourceId: consent._id,
+        patientId: consent.patientId,
+        outcome: "success",
+        metadata: { grantedToUserId: consent.grantedToUserId },
+      });
 
       res.json({ consent: consent.toJSON() });
     } catch (error) {

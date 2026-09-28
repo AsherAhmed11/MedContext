@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import EmergencyAccess from "../models/EmergencyAccess.js";
 import Patient from "../models/Patient.js";
 import { requireRole } from "../middleware/authorize.js";
+import { AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "../middleware/audit.js";
 
 const router = express.Router();
 
@@ -71,6 +72,17 @@ router.post("/", requireRole("doctor"), async (req, res) => {
       status: "active",
     });
 
+    // Audit: emergency access initiated
+    await req.audit({
+      action: AUDIT_ACTIONS.EMERGENCY_ACCESS_INITIATED,
+      resourceType: AUDIT_RESOURCE_TYPES.EMERGENCY_ACCESS,
+      resourceId: emergencyAccess._id,
+      patientId,
+      outcome: "success",
+      reason: emergencyAccess.reason,
+      metadata: { durationMinutes: duration, expiresAt },
+    });
+
     res.status(201).json({ emergencyAccess: emergencyAccess.toJSON() });
   } catch (error) {
     console.error("Initiate emergency access error:", error);
@@ -110,6 +122,16 @@ router.put("/:accessId/end", requireRole("doctor"), async (req, res) => {
     emergencyAccess.status = "ended";
     emergencyAccess.endedAt = new Date();
     await emergencyAccess.save();
+
+    // Audit: emergency access ended
+    await req.audit({
+      action: AUDIT_ACTIONS.EMERGENCY_ACCESS_ENDED,
+      resourceType: AUDIT_RESOURCE_TYPES.EMERGENCY_ACCESS,
+      resourceId: emergencyAccess._id,
+      patientId: emergencyAccess.patientId,
+      outcome: "success",
+      reason: emergencyAccess.reason,
+    });
 
     res.json({ emergencyAccess: emergencyAccess.toJSON() });
   } catch (error) {
@@ -193,13 +215,14 @@ router.get("/:accessId", async (req, res) => {
 });
 
 // ── Check if doctor has active emergency access for a patient ───────────────
+// CRITICAL: Must be defined AFTER /:accessId route to avoid route conflict
 
 /**
- * GET /api/emergency-access/check/:patientId
+ * GET /api/emergency-access/active/check/:patientId
  * Doctor checks if they have active emergency access for a specific patient.
  */
 router.get(
-  "/check/:patientId",
+  "/active/check/:patientId",
   requireRole("doctor"),
   async (req, res) => {
     try {

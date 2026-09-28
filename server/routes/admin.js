@@ -5,6 +5,7 @@ import Patient from "../models/Patient.js";
 import Doctor from "../models/Doctor.js";
 import Appointment from "../models/Appointment.js";
 import { requireRole } from "../middleware/authorize.js";
+import { AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "../middleware/audit.js";
 
 const router = express.Router();
 
@@ -77,8 +78,18 @@ router.put("/users/:userId/status", async (req, res) => {
         .json({ message: "Cannot modify status of another admin." });
     }
 
+    const oldStatus = targetUser.status;
     targetUser.status = status;
     await targetUser.save();
+
+    // Audit: user status changed
+    await req.audit({
+      action: AUDIT_ACTIONS.USER_STATUS_CHANGED,
+      resourceType: AUDIT_RESOURCE_TYPES.USER,
+      resourceId: targetUser._id,
+      outcome: "success",
+      metadata: { oldStatus, newStatus: status, targetRole: targetUser.role },
+    });
 
     res.json({ user: targetUser.toJSON() });
   } catch (error) {

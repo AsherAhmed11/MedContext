@@ -8,6 +8,7 @@ import MedicalHistory from "../models/MedicalHistory.js";
 import MedicalReport from "../models/MedicalReport.js";
 import { requireRole } from "../middleware/authorize.js";
 import { requireConsent } from "../middleware/consent.js";
+import { AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "../middleware/audit.js";
 
 const router = express.Router();
 
@@ -226,6 +227,16 @@ router.get("/:patientId", async (req, res) => {
     }
     // admin: allowed for any patient in org
 
+    // Audit: chart accessed
+    await req.audit({
+      action: AUDIT_ACTIONS.CHART_ACCESSED,
+      resourceType: AUDIT_RESOURCE_TYPES.PATIENT,
+      resourceId: patient._id,
+      patientId: patient._id,
+      outcome: "success",
+      metadata: { accessType: req.consent ? "consent" : req.emergencyAccess ? "emergency" : "admin" },
+    });
+
     res.json({ patient });
   } catch (error) {
     console.error("Get patient error:", error);
@@ -270,6 +281,15 @@ router.put("/:patientId", requireRole("admin"), async (req, res) => {
     }
 
     await patient.save();
+
+    // Audit: patient profile updated
+    await req.audit({
+      action: AUDIT_ACTIONS.PATIENT_PROFILE_UPDATED,
+      resourceType: AUDIT_RESOURCE_TYPES.PATIENT,
+      resourceId: patient._id,
+      patientId: patient._id,
+      outcome: "success",
+    });
 
     res.json({ patient: patient.toJSON() });
   } catch (error) {
@@ -387,6 +407,17 @@ router.get(
         .sort({ appointmentDate: -1 })
         .lean();
 
+      // Audit: appointments viewed
+      if (req.user.role === "doctor") {
+        await req.audit({
+          action: AUDIT_ACTIONS.APPOINTMENT_VIEWED,
+          resourceType: AUDIT_RESOURCE_TYPES.APPOINTMENT,
+          patientId: req.clinicalPatient._id,
+          outcome: "success",
+          metadata: { count: appointments.length },
+        });
+      }
+
       res.json({ appointments });
     } catch (error) {
       console.error("List appointments error:", error);
@@ -426,6 +457,16 @@ router.post(
         notes: notes ? String(notes).trim() : undefined,
       });
 
+      // Audit: appointment created
+      await req.audit({
+        action: AUDIT_ACTIONS.APPOINTMENT_CREATED,
+        resourceType: AUDIT_RESOURCE_TYPES.APPOINTMENT,
+        resourceId: appointment._id,
+        patientId: req.clinicalPatient._id,
+        outcome: "success",
+        metadata: { appointmentDate, reason },
+      });
+
       res.status(201).json({ appointment });
     } catch (error) {
       console.error("Create appointment error:", error);
@@ -451,6 +492,17 @@ router.get(
       })
         .sort({ startDate: -1 })
         .lean();
+
+      // Audit: medications viewed
+      if (req.user.role === "doctor") {
+        await req.audit({
+          action: AUDIT_ACTIONS.MEDICATION_VIEWED,
+          resourceType: AUDIT_RESOURCE_TYPES.MEDICATION,
+          patientId: req.clinicalPatient._id,
+          outcome: "success",
+          metadata: { count: medications.length },
+        });
+      }
 
       res.json({ medications });
     } catch (error) {
@@ -493,6 +545,16 @@ router.post(
         endDate: endDate ? new Date(endDate) : undefined,
       });
 
+      // Audit: medication created
+      await req.audit({
+        action: AUDIT_ACTIONS.MEDICATION_CREATED,
+        resourceType: AUDIT_RESOURCE_TYPES.MEDICATION,
+        resourceId: medication._id,
+        patientId: req.clinicalPatient._id,
+        outcome: "success",
+        metadata: { medicationName },
+      });
+
       res.status(201).json({ medication });
     } catch (error) {
       console.error("Create medication error:", error);
@@ -518,6 +580,17 @@ router.get(
       })
         .sort({ startDate: -1 })
         .lean();
+
+      // Audit: medical histories viewed
+      if (req.user.role === "doctor") {
+        await req.audit({
+          action: AUDIT_ACTIONS.MEDICAL_HISTORY_VIEWED,
+          resourceType: AUDIT_RESOURCE_TYPES.MEDICAL_HISTORY,
+          patientId: req.clinicalPatient._id,
+          outcome: "success",
+          metadata: { count: medicalHistories.length },
+        });
+      }
 
       res.json({ medicalHistories });
     } catch (error) {
@@ -558,6 +631,16 @@ router.post(
         doctorId: req.doctorDocId,
       });
 
+      // Audit: medical history created
+      await req.audit({
+        action: AUDIT_ACTIONS.MEDICAL_HISTORY_CREATED,
+        resourceType: AUDIT_RESOURCE_TYPES.MEDICAL_HISTORY,
+        resourceId: medicalHistory._id,
+        patientId: req.clinicalPatient._id,
+        outcome: "success",
+        metadata: { condition },
+      });
+
       res.status(201).json({ medicalHistory });
     } catch (error) {
       console.error("Create medical history error:", error);
@@ -583,6 +666,17 @@ router.get(
       })
         .sort({ reportDate: -1 })
         .lean();
+
+      // Audit: medical reports viewed
+      if (req.user.role === "doctor") {
+        await req.audit({
+          action: AUDIT_ACTIONS.MEDICAL_REPORT_VIEWED,
+          resourceType: AUDIT_RESOURCE_TYPES.MEDICAL_REPORT,
+          patientId: req.clinicalPatient._id,
+          outcome: "success",
+          metadata: { count: medicalReports.length },
+        });
+      }
 
       res.json({ medicalReports });
     } catch (error) {
@@ -627,6 +721,16 @@ router.post(
         fileUrl: fileUrl ? String(fileUrl).trim() : undefined,
         summary: summary ? String(summary).trim() : undefined,
         findings: findings ? String(findings).trim() : undefined,
+      });
+
+      // Audit: medical report created
+      await req.audit({
+        action: AUDIT_ACTIONS.MEDICAL_REPORT_CREATED,
+        resourceType: AUDIT_RESOURCE_TYPES.MEDICAL_REPORT,
+        resourceId: medicalReport._id,
+        patientId: req.clinicalPatient._id,
+        outcome: "success",
+        metadata: { reportType },
       });
 
       res.status(201).json({ medicalReport });

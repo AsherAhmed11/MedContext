@@ -10,33 +10,29 @@ export default function EmergencyAccessPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [showInitiate, setShowInitiate] = useState(false);
-  const [filter, setFilter] = useState({ status: "", patientId: "" });
 
   const loadAccesses = useCallback(async () => {
     try {
       setLoading(true);
-      const params = {};
-      if (filter.status) params.status = filter.status;
-      if (filter.patientId) params.patientId = filter.patientId;
-      const data = await api.getEmergencyAccesses(params);
+      const data = await api.getEmergencyAccesses({});
       setAccesses(data.emergencyAccesses);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     loadAccesses();
   }, [loadAccesses]);
 
   async function handleEnd(accessId) {
-    if (!confirm("End this emergency access early?")) return;
+    if (!confirm("End emergency access now?")) return;
     try {
       setError("");
       await api.endEmergencyAccess(accessId);
-      setMessage("Emergency access ended.");
+      setMessage("Emergency access ended successfully.");
       loadAccesses();
     } catch (err) {
       setError(err.message);
@@ -47,7 +43,7 @@ export default function EmergencyAccessPage() {
     try {
       setError("");
       await api.createEmergencyAccess(form);
-      setMessage("Emergency access initiated.");
+      setMessage("Emergency access activated.");
       setShowInitiate(false);
       loadAccesses();
     } catch (err) {
@@ -59,116 +55,150 @@ export default function EmergencyAccessPage() {
     return (
       <div className="loading-page">
         <span className="spinner" />
-        <span>Loading emergency access records...</span>
+        <span className="loading-text">Loading...</span>
       </div>
     );
   }
 
+  const activeAccesses = accesses.filter(a => a.status === "active");
+  const expiredAccesses = accesses.filter(a => a.status !== "active");
+
   return (
-    <div>
-      <div className="page-header">
-        <h1>Emergency Access</h1>
-        <p>
+    <div className="emergency-page">
+      <div className="page-header-simple">
+        <h1 className="page-title-large">
+          {user?.role === "doctor" ? "Emergency Access" : "Emergency Access Log"}
+        </h1>
+        <p className="page-subtitle">
           {user?.role === "doctor"
-            ? "Break-glass access to patient charts in emergencies"
-            : "Monitor emergency access events in your organization"}
+            ? "Temporary access to patient records during emergencies"
+            : "Monitor all emergency access events"}
         </p>
       </div>
 
-      {error && <div className="message message--error">{error}</div>}
-      {message && <div className="message message--success">{message}</div>}
+      {error && <div className="alert alert--error">{error}</div>}
+      {message && <div className="alert alert--success">{message}</div>}
 
-      {user?.role === "admin" && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="filter-row">
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Status Filter</label>
-              <select
-                value={filter.status}
-                onChange={(e) => setFilter((f) => ({ ...f, status: e.target.value }))}
-              >
-                <option value="">All statuses</option>
-                <option value="active">Active</option>
-                <option value="expired">Expired</option>
-                <option value="ended">Ended</option>
-              </select>
+      {user?.role === "doctor" && (
+        <>
+          <div className="emergency-warning">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 3L2 21h20L12 3z" />
+              <path d="M12 9v5" strokeWidth="2.5" />
+              <circle cx="12" cy="17" r="1" fill="currentColor" />
+            </svg>
+            <div>
+              <p className="warning-title">Use Only for True Emergencies</p>
+              <p className="warning-text">
+                This bypasses normal consent. All access is recorded and reviewed.
+              </p>
             </div>
           </div>
+
+          <div className="action-section">
+            <button className="btn-large btn-large--danger" onClick={() => setShowInitiate(true)}>
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 3L2 21h20L12 3z" />
+              </svg>
+              <span>Start Emergency Access</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {activeAccesses.length > 0 && (
+        <>
+          <h2 className="section-title">Active Emergency Access</h2>
+          <div className="access-list">
+            {activeAccesses.map((access) => (
+              <AccessCard
+                key={access._id || access.id}
+                access={access}
+                userRole={user?.role}
+                onEnd={handleEnd}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {expiredAccesses.length > 0 && (
+        <>
+          <h2 className="section-title">Past Emergency Access</h2>
+          <div className="access-list">
+            {expiredAccesses.map((access) => (
+              <AccessCard
+                key={access._id || access.id}
+                access={access}
+                userRole={user?.role}
+                onEnd={handleEnd}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {accesses.length === 0 && (
+        <div className="empty-state-large">
+          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 3L2 21h20L12 3z" />
+          </svg>
+          <p className="empty-text">No emergency access records found</p>
         </div>
       )}
 
-      <div className="card">
-        <div className="card__header">
-          <h3 className="card__title">Emergency Access Records</h3>
-          {user?.role === "doctor" && (
-            <button
-              className="btn btn--primary"
-              onClick={() => setShowInitiate(true)}
-            >
-              + Initiate Emergency Access
-            </button>
-          )}
-        </div>
+      {showInitiate && (
+        <InitiateModal onClose={() => setShowInitiate(false)} onInitiate={handleInitiate} />
+      )}
+    </div>
+  );
+}
 
-        {accesses.length === 0 ? (
-          <div className="empty-state">
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.2">
-              <path d="M12 3L2 21h20L12 3z" />
-              <path d="M12 9v5" strokeWidth="2" />
-              <circle cx="12" cy="17" r="0.5" fill="currentColor" strokeWidth="2" />
-            </svg>
-            <p>No emergency access records found.</p>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Patient</th>
-                  <th>Doctor</th>
-                  <th>Reason</th>
-                  <th>Status</th>
-                  <th>Started</th>
-                  <th>Expires</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accesses.map((a) => (
-                  <tr key={a._id || a.id}>
-                    <td>{a.patientId}</td>
-                    <td>{a.accessedByUserId}</td>
-                    <td className="reason-cell">{a.reason}</td>
-                    <td>
-                      <span className={`badge badge--${a.status}`}>
-                        {a.status}
-                      </span>
-                    </td>
-                    <td>{formatDate(a.startedAt)}</td>
-                    <td>{formatDate(a.expiresAt)}</td>
-                    <td>
-                      {a.status === "active" && (
-                        <button
-                          className="btn btn--danger btn--sm"
-                          onClick={() => handleEnd(a._id || a.id)}
-                        >
-                          End Access
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+function AccessCard({ access, userRole, onEnd }) {
+  const now = new Date();
+  const expiresAt = new Date(access.expiresAt);
+  const isActive = access.status === "active" && expiresAt > now;
+  const timeLeft = isActive ? Math.round((expiresAt - now) / 60000) : 0;
+
+  return (
+    <div className={`access-card ${isActive ? "access-card--active" : "access-card--expired"}`}>
+      <div className="access-card__header">
+        <div>
+          <h3 className="access-card__title">Patient ID: {access.patientId}</h3>
+          <p className="access-card__meta">
+            {isActive ? `Expires in ${timeLeft} minutes` : `Ended: ${formatDate(access.endedAt || access.expiresAt)}`}
+          </p>
+        </div>
+        <span className={`status-badge ${isActive ? "status-badge--danger" : "status-badge--inactive"}`}>
+          {isActive ? "ACTIVE" : access.status.toUpperCase()}
+        </span>
       </div>
 
-      {showInitiate && (
-        <InitiateModal
-          onClose={() => setShowInitiate(false)}
-          onInitiate={handleInitiate}
-        />
+      <div className="access-card__reason">
+        <p className="reason-label">Emergency Reason:</p>
+        <p className="reason-text">{access.reason}</p>
+      </div>
+
+      <div className="access-card__details">
+        <div className="detail-row">
+          <span className="detail-label">Started:</span>
+          <span className="detail-value">{formatDate(access.startedAt)}</span>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Expires:</span>
+          <span className="detail-value">{formatDate(access.expiresAt)}</span>
+        </div>
+      </div>
+
+      {isActive && userRole === "doctor" && (
+        <div className="access-card__actions">
+          <button
+            className="btn-large btn-large--outline"
+            onClick={() => onEnd(access._id || access.id)}
+          >
+            End Access Now
+          </button>
+        </div>
       )}
     </div>
   );
@@ -192,69 +222,78 @@ function InitiateModal({ onClose, onInitiate }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal__header">
-          <h2>Initiate Emergency Access</h2>
-          <button className="modal__close" onClick={onClose}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+    <div className="modal-overlay-large" onClick={onClose}>
+      <div className="modal-large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-large__header">
+          <h2 className="modal-large__title">Start Emergency Access</h2>
+          <button className="modal-large__close" onClick={onClose} aria-label="Close">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
+
         <form onSubmit={handleSubmit}>
-          <div className="modal__body">
-            <div className="emergency-banner">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+          <div className="modal-large__body">
+            <div className="emergency-banner-modal">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 3L2 21h20L12 3z" />
-                <path d="M12 9v5" strokeWidth="2" />
-                <circle cx="12" cy="17" r="0.5" fill="currentColor" strokeWidth="2" />
               </svg>
-              <span>
-                Emergency access bypasses consent requirements and is fully
-                audited. Use only in genuine emergencies.
-              </span>
+              <span>This access is fully audited and monitored</span>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="patientId">Patient ID</label>
+            <div className="form-group-large">
+              <label htmlFor="patientId" className="label-large">Patient ID</label>
               <input
                 id="patientId"
+                className="input-large"
                 value={patientId}
                 onChange={(e) => setPatientId(e.target.value)}
                 placeholder="Enter patient ID"
                 required
+                autoFocus
               />
             </div>
-            <div className="form-group">
-              <label htmlFor="reason">Reason (required)</label>
+
+            <div className="form-group-large">
+              <label htmlFor="reason" className="label-large">Emergency Reason</label>
               <textarea
                 id="reason"
+                className="textarea-large"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Explain why emergency access is needed..."
+                rows="4"
                 required
               />
+              <p className="input-hint">Describe the emergency situation</p>
             </div>
-            <div className="form-group">
-              <label htmlFor="duration">Duration (minutes)</label>
-              <input
+
+            <div className="form-group-large">
+              <label htmlFor="duration" className="label-large">Duration</label>
+              <select
                 id="duration"
-                type="number"
-                min="5"
-                max="480"
+                className="input-large"
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(e.target.value)}
-              />
-              <small className="form-hint">5 minutes to 8 hours. Default: 60 minutes.</small>
+              >
+                <option value="5">5 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">1 hour (recommended)</option>
+                <option value="120">2 hours</option>
+                <option value="240">4 hours</option>
+                <option value="480">8 hours (maximum)</option>
+              </select>
             </div>
           </div>
-          <div className="modal__footer">
-            <button type="button" className="btn btn--outline" onClick={onClose}>
+
+          <div className="modal-large__footer">
+            <button type="button" className="btn-large btn-large--outline" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn--danger" disabled={busy}>
-              {busy ? "Initiating..." : "Initiate Emergency Access"}
+            <button type="submit" className="btn-large btn-large--danger" disabled={busy}>
+              {busy ? "Starting..." : "Start Emergency Access"}
             </button>
           </div>
         </form>
@@ -266,11 +305,11 @@ function InitiateModal({ onClose, onInitiate }) {
 function formatDate(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
+  return d.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 }

@@ -16,6 +16,7 @@ import adminRoutes from "./routes/admin.js";
 import consentRoutes from "./routes/consents.js";
 import emergencyAccessRoutes from "./routes/emergencyAccess.js";
 import auditLogRoutes from "./routes/auditLogs.js";
+import contextEngineRoutes from "./routes/contextEngine.js";
 import { requireAuth } from "./middleware/auth.js";
 import { auditMiddleware } from "./middleware/audit.js";
 
@@ -43,6 +44,7 @@ app.use("/api/admin", requireAuth, auditMiddleware, adminRoutes);
 app.use("/api/consents", requireAuth, auditMiddleware, consentRoutes);
 app.use("/api/emergency-access", requireAuth, auditMiddleware, emergencyAccessRoutes);
 app.use("/api/audit-logs", requireAuth, auditLogRoutes);
+app.use("/api/context-engine", requireAuth, auditMiddleware, contextEngineRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Not found" });

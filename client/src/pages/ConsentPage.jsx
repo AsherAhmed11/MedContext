@@ -28,11 +28,11 @@ export default function ConsentPage() {
   }, [loadConsents]);
 
   async function handleRevoke(consentId) {
-    if (!confirm("Are you sure you want to revoke this consent?")) return;
+    if (!confirm("Are you sure you want to stop this doctor from accessing your records?")) return;
     try {
       setError("");
       await api.revokeConsent(consentId);
-      setMessage("Consent revoked successfully.");
+      setMessage("Access removed successfully.");
       loadConsents();
     } catch (err) {
       setError(err.message);
@@ -43,7 +43,7 @@ export default function ConsentPage() {
     try {
       setError("");
       await api.createConsent(form);
-      setMessage("Consent granted successfully.");
+      setMessage("Doctor can now access your records.");
       setShowGrant(false);
       loadConsents();
     } catch (err) {
@@ -55,86 +55,64 @@ export default function ConsentPage() {
     return (
       <div className="loading-page">
         <span className="spinner" />
-        <span>Loading consents...</span>
+        <span className="loading-text">Loading...</span>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>{user?.role === "patient" ? "My Consents" : "Patient Consents"}</h1>
-        <p>
+    <div className="consent-page">
+      <div className="page-header-simple">
+        <h1 className="page-title-large">
+          {user?.role === "patient" ? "Who Can See My Records" : "Patient Access"}
+        </h1>
+        <p className="page-subtitle">
           {user?.role === "patient"
-            ? "Manage which doctors can access your medical records"
+            ? "Control which doctors can view your medical information"
             : user?.role === "doctor"
-            ? "Consents patients have granted to you"
-            : "All consent records in your organization"}
+            ? "Patients who gave you access to their records"
+            : "All access permissions in your organization"}
         </p>
       </div>
 
-      {error && <div className="message message--error">{error}</div>}
-      {message && <div className="message message--success">{message}</div>}
+      {error && <div className="alert alert--error">{error}</div>}
+      {message && <div className="alert alert--success">{message}</div>}
 
-      <div className="card">
-        <div className="card__header">
-          <h3 className="card__title">Consent Records</h3>
-          {user?.role === "patient" && (
-            <button className="btn btn--primary" onClick={() => setShowGrant(true)}>
-              + Grant Consent
-            </button>
-          )}
-        </div>
-
-        {consents.length === 0 ? (
-          <div className="empty-state">
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.2">
-              <path d="M12 3l8 4v5c0 5.5-3.8 10.7-8 12-4.2-1.3-8-6.5-8-12V7l8-4z" />
+      {user?.role === "patient" && (
+        <div className="action-section">
+          <button className="btn-large btn-large--primary" onClick={() => setShowGrant(true)}>
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v8M8 12h8" />
             </svg>
-            <p>No consents found.</p>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Patient</th>
-                  <th>Doctor</th>
-                  <th>Purpose</th>
-                  <th>Status</th>
-                  <th>Granted</th>
-                  <th>Expires</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {consents.map((c) => (
-                  <tr key={c._id || c.id}>
-                    <td>{c.patientId}</td>
-                    <td>{c.grantedToUserId}</td>
-                    <td>{c.purpose}</td>
-                    <td>
-                      <span className={`badge badge--${c.status}`}>{c.status}</span>
-                    </td>
-                    <td>{formatDate(c.grantedAt)}</td>
-                    <td>{c.expiresAt ? formatDate(c.expiresAt) : "No expiry"}</td>
-                    <td>
-                      {c.status === "active" && user?.role === "patient" && (
-                        <button
-                          className="btn btn--danger btn--sm"
-                          onClick={() => handleRevoke(c._id || c.id)}
-                        >
-                          Revoke
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+            <span>Give a Doctor Access</span>
+          </button>
+        </div>
+      )}
+
+      {consents.length === 0 ? (
+        <div className="empty-state-large">
+          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M12 3l8 4v5c0 5.5-3.8 10.7-8 12-4.2-1.3-8-6.5-8-12V7l8-4z" />
+          </svg>
+          <p className="empty-text">
+            {user?.role === "patient"
+              ? "You haven't given access to any doctors yet"
+              : "No access permissions found"}
+          </p>
+        </div>
+      ) : (
+        <div className="consent-list">
+          {consents.map((c) => (
+            <ConsentCard
+              key={c._id || c.id}
+              consent={c}
+              userRole={user?.role}
+              onRevoke={handleRevoke}
+            />
+          ))}
+        </div>
+      )}
 
       {showGrant && (
         <GrantConsentModal
@@ -146,83 +124,119 @@ export default function ConsentPage() {
   );
 }
 
+function ConsentCard({ consent, userRole, onRevoke }) {
+  const isExpired = consent.expiresAt && new Date(consent.expiresAt) < new Date();
+  const statusText = consent.status === "active" && !isExpired ? "Active" :
+                     isExpired ? "Expired" :
+                     consent.status === "revoked" ? "Removed" : consent.status;
+
+  return (
+    <div className={`consent-card ${consent.status !== "active" || isExpired ? "consent-card--inactive" : ""}`}>
+      <div className="consent-card__header">
+        <div className="consent-card__info">
+          <h3 className="consent-card__title">{consent.purpose}</h3>
+          <p className="consent-card__meta">
+            {userRole === "patient" ? `Doctor ID: ${consent.grantedToUserId}` : `Patient ID: ${consent.patientId}`}
+          </p>
+        </div>
+        <span className={`status-badge status-badge--${consent.status === "active" && !isExpired ? "active" : "inactive"}`}>
+          {statusText}
+        </span>
+      </div>
+
+      <div className="consent-card__details">
+        <div className="detail-row">
+          <span className="detail-label">Given on:</span>
+          <span className="detail-value">{formatDate(consent.grantedAt)}</span>
+        </div>
+        {consent.expiresAt && (
+          <div className="detail-row">
+            <span className="detail-label">Expires:</span>
+            <span className="detail-value">{formatDate(consent.expiresAt)}</span>
+          </div>
+        )}
+        {!consent.expiresAt && (
+          <div className="detail-row">
+            <span className="detail-label">Expires:</span>
+            <span className="detail-value">Never</span>
+          </div>
+        )}
+      </div>
+
+      {consent.status === "active" && !isExpired && userRole === "patient" && (
+        <div className="consent-card__actions">
+          <button
+            className="btn-large btn-large--danger"
+            onClick={() => onRevoke(consent._id || consent.id)}
+          >
+            Remove Access
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GrantConsentModal({ onClose, onGrant }) {
   const [doctorUserId, setDoctorUserId] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
-  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setBusy(true);
-    await onGrant({
-      doctorUserId,
-      purpose,
-      expiresAt: expiresAt || undefined,
-      notes: notes || undefined,
-    });
+    await onGrant({ doctorUserId, purpose });
     setBusy(false);
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal__header">
-          <h2>Grant Consent</h2>
-          <button className="modal__close" onClick={onClose}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+    <div className="modal-overlay-large" onClick={onClose}>
+      <div className="modal-large" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-large__header">
+          <h2 className="modal-large__title">Give Doctor Access</h2>
+          <button className="modal-large__close" onClick={onClose} aria-label="Close">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
+
         <form onSubmit={handleSubmit}>
-          <div className="modal__body">
-            <div className="form-group">
-              <label htmlFor="doctorUserId">Doctor User ID</label>
+          <div className="modal-large__body">
+            <div className="form-group-large">
+              <label htmlFor="doctorUserId" className="label-large">Doctor's ID</label>
               <input
                 id="doctorUserId"
+                className="input-large"
                 value={doctorUserId}
                 onChange={(e) => setDoctorUserId(e.target.value)}
-                placeholder="Enter doctor's user ID"
+                placeholder="Enter the doctor's user ID"
                 required
+                autoFocus
               />
+              <p className="input-hint">Ask your doctor for their user ID</p>
             </div>
-            <div className="form-group">
-              <label htmlFor="purpose">Purpose</label>
+
+            <div className="form-group-large">
+              <label htmlFor="purpose" className="label-large">Reason</label>
               <input
                 id="purpose"
+                className="input-large"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                placeholder="e.g., Cardiology consultation"
+                placeholder="e.g., Heart checkup"
                 required
               />
-            </div>
-            <div className="form-group">
-              <label htmlFor="expiresAt">Expires At (optional)</label>
-              <input
-                id="expiresAt"
-                type="datetime-local"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="notes">Notes (optional)</label>
-              <textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Additional notes..."
-              />
+              <p className="input-hint">Why does this doctor need access?</p>
             </div>
           </div>
-          <div className="modal__footer">
-            <button type="button" className="btn btn--outline" onClick={onClose}>
+
+          <div className="modal-large__footer">
+            <button type="button" className="btn-large btn-large--outline" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn--primary" disabled={busy}>
-              {busy ? "Granting..." : "Grant Consent"}
+            <button type="submit" className="btn-large btn-large--primary" disabled={busy}>
+              {busy ? "Processing..." : "Give Access"}
             </button>
           </div>
         </form>
@@ -236,7 +250,7 @@ function formatDate(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", {
     year: "numeric",
-    month: "short",
+    month: "long",
     day: "numeric",
   });
 }

@@ -45,6 +45,7 @@ app.use("/api/consents", requireAuth, auditMiddleware, consentRoutes);
 app.use("/api/emergency-access", requireAuth, auditMiddleware, emergencyAccessRoutes);
 app.use("/api/audit-logs", requireAuth, auditLogRoutes);
 app.use("/api/context-engine", requireAuth, auditMiddleware, contextEngineRoutes);
+app.use("/api/medication-safety", requireAuth, auditMiddleware, medicationSafetyRoutes);
 app.use("/api/context-engine", requireAuth, auditMiddleware, contextEngineRoutes);
 
 app.use((_req, res) => {

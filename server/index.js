@@ -45,6 +45,7 @@ app.use("/api/consents", requireAuth, auditMiddleware, consentRoutes);
 app.use("/api/emergency-access", requireAuth, auditMiddleware, emergencyAccessRoutes);
 app.use("/api/audit-logs", requireAuth, auditLogRoutes);
 app.use("/api/context-engine", requireAuth, auditMiddleware, contextEngineRoutes);
+app.use("/api/context-engine", requireAuth, auditMiddleware, contextEngineRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ message: "Not found" });
